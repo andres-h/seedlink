@@ -128,16 +128,23 @@ def main():
 
     n = len(channels) // args.multiplicity
 
+    stationCache = {}
+
     for i in range(len(channels)):
         cn = channels[i % n]
         staCode = eval("f'''" + args.station + "'''", {"channel": cn})
         locCode = "%02d" % (i // n)
 
-        sta = seiscomp.datamodel.Station_Create()
-        sta.setCode(staCode)
-        sta.setDescription("DAS channel %d" % cn)
-        sta.setStart(net.start())
-        net.add(sta)
+        try:
+            sta = stationCache[staCode]
+
+        except KeyError:
+            sta = seiscomp.datamodel.Station_Create()
+            stationCache[staCode] = sta
+            sta.setCode(staCode)
+            sta.setDescription("DAS channel %d" % cn)
+            sta.setStart(net.start())
+            net.add(sta)
 
         loc = seiscomp.datamodel.SensorLocation_Create()
         loc.setCode(locCode)
