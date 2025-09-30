@@ -21,7 +21,7 @@ import zmq
 import seiscomp.datamodel, seiscomp.core, seiscomp.io
 
 
-VERSION = "0.1 (2024.066)"
+VERSION = "0.1 (2025.273)"
 
 
 def main():
@@ -33,8 +33,8 @@ def main():
         gain=1.0,
         network="XX",
         station="{channel:05d}",
-        location="",
-        channel="HSF"
+        channel="HSF",
+        multiplicity=1
     )
 
     parser.add_argument("--version",
@@ -70,6 +70,11 @@ def main():
 
     parser.add_argument("-c", "--channel",
         help="channel code (default %(default)s)"
+    )
+
+    parser.add_argument("-m", "--multiplicity",
+        type=int,
+        help="multiplicity (default %(default)s)"
     )
 
     args = parser.parse_args()
@@ -115,28 +120,39 @@ def main():
     net.setStart(seiscomp.core.Time.FromYearDay(datetime.datetime.utcnow().year, 1))
     inv.add(net)
 
+    channels = []
+
     for roi in header["roiTable"]:
         for c in range(roi["roiStart"], roi["roiEnd"] + 1, roi["roiDec"]):
-            sta = seiscomp.datamodel.Station_Create()
-            sta.setCode(eval("f'''" + args.station + "'''", {"channel": c}))
-            sta.setDescription("DAS channel %d" % c)
-            sta.setStart(net.start())
-            net.add(sta)
+            channels.append(c)
 
-            loc = seiscomp.datamodel.SensorLocation_Create()
-            loc.setCode(args.location)
-            loc.setStart(net.start())
-            sta.add(loc)
+    n = len(channels) // args.multiplicity
 
-            cha = seiscomp.datamodel.Stream_Create()
-            cha.setCode(args.channel)
-            cha.setStart(net.start())
-            cha.setGain(args.gain / header["dataScale"])
-            cha.setGainUnit(header["unit"])
-            cha.setGainFrequency(0)
-            cha.setSensor(sensor.publicID())
-            cha.setDatalogger(datalogger.publicID())
-            loc.add(cha)
+    for i in range(len(channels)):
+        cn = channels[i % n]
+        staCode = eval("f'''" + args.station + "'''", {"channel": cn})
+        locCode = "%02d" % (i // n)
+
+        sta = seiscomp.datamodel.Station_Create()
+        sta.setCode(staCode)
+        sta.setDescription("DAS channel %d" % cn)
+        sta.setStart(net.start())
+        net.add(sta)
+
+        loc = seiscomp.datamodel.SensorLocation_Create()
+        loc.setCode(locCode)
+        loc.setStart(net.start())
+        sta.add(loc)
+
+        cha = seiscomp.datamodel.Stream_Create()
+        cha.setCode(args.channel)
+        cha.setStart(net.start())
+        cha.setGain(args.gain / header["dataScale"])
+        cha.setGainUnit(header["unit"])
+        cha.setGainFrequency(0)
+        cha.setSensor(sensor.publicID())
+        cha.setDatalogger(datalogger.publicID())
+        loc.add(cha)
 
     ar = seiscomp.io.XMLArchive()
     ar.create("-")

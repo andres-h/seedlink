@@ -23,23 +23,33 @@ import numpy as np
 from plugin import Seedlink
 
 
-VERSION = "0.1 (2024.020)"
+VERSION = "0.1 (2025.273)"
 
 
-def readHeader(text, stationTemplate):
+def readHeader(text, stationTemplate, multiplicity):
     header = json.loads(text)
     unpackFormat = "%d%s" % (header["nChannels"] * header["nPackagesPerMessage"],
                              "f" if header["dataType"] == "float" else "h")
 
-    stations = []
+    channels = []
 
     for roi in header["roiTable"]:
         for c in range(roi["roiStart"], roi["roiEnd"] + 1, roi["roiDec"]):
-            stations.append(eval("f'''" + stationTemplate + "'''", {"channel": c}))
+            channels.append(c)
 
-    if len(stations) != header["nChannels"]:
+    if len(channels) != header["nChannels"]:
         raise Exception("Invalid number of channels in roiTable: %d != %d" %
-                        (len(stations), header["nChannels"]))
+                        (len(channels), header["nChannels"]))
+
+    n = len(channels) // multiplicity
+    stations = []
+    locations = []
+
+    for i in range(len(channels)):
+        cn = channels[i % n]
+        staCode = eval("f'''" + stationTemplate + "'''", {"channel": cn})
+        locCode = "%02d" % (i // n)
+        stations.append((staCode, locCode))
 
     return header, stations, unpackFormat
 
@@ -49,9 +59,8 @@ def flushData(seedlink, header, network, stations, startTime, packageData):
     tq = 100 if header["trustedTimeSource"] else 10
     data = np.concatenate(packageData).astype(int)
 
-    for i, station in enumerate(stations):
-        seedlink.send_raw3("%s.%s" % (network, station), "X", t, 0, tq, data[:, i])
-
+    for i, (staCode, locCode) in enumerate(stations):
+        seedlink.send_raw3("%s.%s" % (network, staCode), "X.%s" % locCode, t, 0, tq, data[:, i])
 
 def main():
     parser = argparse.ArgumentParser()
@@ -61,7 +70,8 @@ def main():
         sample_rate=100,
         gain=1.0,
         network="XX",
-        station="{channel:05d}"
+        station="{channel:05d}",
+        multiplicity=1
     )
 
     parser.add_argument("--version",
@@ -91,6 +101,11 @@ def main():
         help="station code template (default %(default)s)"
     )
 
+    parser.add_argument("-m", "--multiplicity",
+        type=int,
+        help="multiplicity (default %(default)s)"
+    )
+
     parser.add_argument("plugin_id",
         help="plugin ID"
     )
@@ -102,7 +117,7 @@ def main():
     sock.connect(args.address)
     sock.setsockopt(zmq.SUBSCRIBE, b"")
 
-    header, stations, unpackFormat = readHeader(sock.recv().decode("utf-8"), args.station)
+    header, stations, unpackFormat = readHeader(sock.recv().decode("utf-8"), args.station, args.multiplicity)
     packageData = []
     nPackages = 0
     startTime = None
@@ -118,7 +133,7 @@ def main():
                     packageData = []
                     nPackages = 0
 
-                header, stations, unpackFormat = readHeader(message.decode("utf-8"))
+                header, stations, unpackFormat = readHeader(message.decode("utf-8"), args.multiplicity)
                 print("%s: Parameters Changed. Updated header, ROIs and format" %
                       args.plugin_id, file=sys.stderr)
 

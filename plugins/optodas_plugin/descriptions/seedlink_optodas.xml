@@ -28,14 +28,14 @@
 				Station code template.
 				</description>
 			</parameter>
-			<parameter name="locationCode" type="string" default="">
-				<description>
-				Location code.
-				</description>
-			</parameter>
 			<parameter name="channelCode" type="string" default="HSF">
 				<description>
 				Channel code.
+				</description>
+			</parameter>
+			<parameter name="multiplicity" type="int" default="1">
+				<description>
+				Multiplicity.
 				</description>
 			</parameter>
 			<parameter name="proc" type="string" default="auto">

@@ -21,18 +21,17 @@ class SeedlinkPluginHandler:
         try: seedlink.param("sources.optodas.stationCode")
         except: seedlink.setParam("sources.optodas.stationCode", "{channel:05d}")
 
-        try: seedlink.param("sources.optodas.locationCode")
-        except: seedlink.setParam("sources.optodas.locationCode", "")
-
         try: seedlink.param("sources.optodas.channelCode")
         except: seedlink.setParam("sources.optodas.channelCode", "HSF")
+
+        try: seedlink.param("sources.optodas.multiplicity")
+        except: seedlink.setParam("sources.optodas.multiplicity", "1")
 
         try: seedlink.param("sources.optodas.proc")
         except: seedlink.setParam("sources.optodas.proc", "auto")
 
         if seedlink.param("sources.optodas.proc") == "auto":
-            seedlink.setParam("sources.optodas.proc", "auto:optodas_%s_%s_%s" % (
-                              seedlink.param("sources.optodas.locationCode"),
+            seedlink.setParam("sources.optodas.proc", "auto:optodas_%s_%s" % (
                               seedlink.param("sources.optodas.channelCode"),
                               seedlink.param("sources.optodas.sampleRate")))
 
