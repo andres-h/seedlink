@@ -2022,6 +2022,9 @@ void StationMonitorImpl::restore_state(const string &filename)
     read_config_xml(filename, "buffer", atts, elms);
 
     if(error) throw MonitorConfigError(filename);
+
+    if(segment_count < 0)  // unexpected inconsistency, force buffer rescan
+        throw MonitorConfigError(filename);
   }
 
 //*****************************************************************************
